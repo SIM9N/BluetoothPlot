@@ -13,6 +13,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 from matplotlib.figure import Figure
 
+import matplotlib.pyplot as plt
+
 
 root = Tk()
 root.title("BluetoothPlot")
@@ -104,7 +106,6 @@ disconnectBtn = Button(
     serialFrame, text="disconnect", command=lambda: serialObj.close()
 )
 
-
 # Bluetooth data print
 dataFrame = Frame(leftWrapperFrame, bg="#bbc1c8")
 dataFrame.grid(column=0, row=1, padx=5, pady=5, sticky="nesw")
@@ -119,12 +120,44 @@ dataCanvasScrollbar2 = ttk.Scrollbar(
 textData["yscroll"] = dataCanvasScrollbar.set
 textData["xscroll"] = dataCanvasScrollbar2.set
 
+varName = [""]
+startCollectingData = False
+Data = []
+recentPacketString = ""
+
 
 def printSerialPortData():
     if serialObj.isOpen() and serialObj.in_waiting:
         recentPacket = serialObj.readline()
+        global recentPacketString
         recentPacketString = recentPacket.decode("utf")
         textData.insert("end", recentPacketString)
+        textData.see(END)
+        packetArray = recentPacketString.split("-")
+        if packetArray[0] == "bp":
+            print("found bp")
+            global startCollectingData
+            startCollectingData = True
+            global varName
+            varName = packetArray
+            varName.pop(0)
+            global Data
+            Data = [[None] for i in range(len(varName) - 1)]
+            print(Data)
+            dropDownX.config(values=varName)
+            dropDownY.config(values=varName)
+        elif packetArray[0] == "stop":
+            print("stop")
+            startCollectingData = False
+
+
+def appendData():
+    if startCollectingData:
+        packetArray = recentPacketString.split(",")
+        print(packetArray)
+        if len(packetArray) != 1:
+            for i in range(len(varName) - 1):
+                Data[i].append(packetArray[i])
 
 
 # clean the text in dataFrame
@@ -137,27 +170,11 @@ cleanBtn = Button(serialFrame, text="clean", command=cleanData)
 # --- End Left Part ---#
 
 # --- Start Right Part ---#
-fig = Figure(figsize=(0.5, 0.5), dpi=100)
+fig = Figure(figsize=(0.1, 0.1), dpi=100)
 ax1 = fig.add_subplot(221)
 ax2 = fig.add_subplot(222)
-
-ax1.plot(
-    [0, 1, 2, 3, 4, 5, 6, 7, 9],
-    [1, 5, 3, 7, 9, 2, 9, 2, 0],
-    color="#444444",
-    linestyle="--",
-    label="label",
-)
-ax1.legend()
-ax1.set_title("graph1")
-ax1.set_xlabel("xlabel")
-ax1.set_ylabel("ylabel")
-
-ax2.plot([0, 1, 2, 3, 4, 5, 6, 7, 9], [1, 5, 3, 7, 9, 2, 9, 2, 0])
-ax2.legend()
-ax2.set_title("graph2")
-ax2.set_xlabel("xlabel")
-ax2.set_ylabel("ylabel")
+ax3 = fig.add_subplot(223)
+ax4 = fig.add_subplot(224)
 
 
 class Toolbar(NavigationToolbar2Tk):
@@ -170,6 +187,122 @@ graphCanvas.draw()
 graphToolBar = Toolbar(graphCanvas, rightWrapperFrame, pack_toolbar=False)
 graphToolBar.update()
 
+controlPannelFrame = Frame(rightWrapperFrame, bg="#d7efd2")
+
+dropDownGraph = ttk.Combobox(
+    controlPannelFrame,
+    value=["graph1", "graph2", "graph3", "graph4"],
+    font=("Courier New", "10"),
+    state="readonly",
+    width=7,
+)
+graphLabel = Label(
+    controlPannelFrame, text="plot", bg="#d7efd2", font=("Courier New", "10")
+)
+graphLabel.pack(side=LEFT, padx=5)
+
+dropDownGraph.current(0)
+dropDownGraph.bind("<FocusIn>", defocus)
+dropDownGraph.pack(side=LEFT)
+
+dropDownX = ttk.Combobox(
+    controlPannelFrame,
+    value=varName,
+    font=("Courier New", "10"),
+    state="readonly",
+    width=10,
+)
+xLabel = Label(controlPannelFrame, text="X", bg="#d7efd2", font=("Courier New", "10"))
+xLabel.pack(side=LEFT, padx=5)
+
+dropDownX.current(0)
+dropDownX.bind("<FocusIn>", defocus)
+dropDownX.pack(side=LEFT)
+
+dropDownY = ttk.Combobox(
+    controlPannelFrame,
+    value=varName,
+    font=("Courier New", "10"),
+    state="readonly",
+    width=10,
+)
+
+yLabel = Label(controlPannelFrame, text="Y", bg="#d7efd2", font=("Courier New", "10"))
+yLabel.pack(side=LEFT, padx=5)
+
+dropDownY.current(0)
+dropDownY.bind("<FocusIn>", defocus)
+dropDownY.pack(side=LEFT)
+
+
+def plotIt():
+    graphNum = dropDownGraph.get()
+    xValue = Data[dropDownX.current()]
+    yValue = Data[dropDownY.current()]
+
+    if graphNum == "graph1":
+        ax1.cla()
+        ax1.plot(
+            xValue,
+            yValue,
+            color="#444444",
+            linestyle="--",
+            label="label",
+        )
+
+        ax1.set_title(dropDownY.get() + " - " + dropDownX.get())
+        ax1.set_xlabel(dropDownX.get())
+        ax1.set_ylabel(dropDownY.get())
+
+    if graphNum == "graph2":
+        ax2.cla()
+        ax2.plot(xValue, yValue)
+        ax2.set_title(dropDownY.get() + " - " + dropDownX.get())
+        ax2.set_xlabel(dropDownX.get())
+        ax2.set_ylabel(dropDownY.get())
+
+    if graphNum == "graph3":
+        ax3.cla()
+        ax3.plot(xValue, yValue)
+        ax3.set_title(dropDownY.get() + " - " + dropDownX.get())
+        ax3.set_xlabel(dropDownX.get())
+        ax3.set_ylabel(dropDownY.get())
+
+    if graphNum == "graph4":
+        ax4.cla()
+        ax4.plot(xValue, yValue)
+        ax4.set_title(dropDownY.get() + " - " + dropDownX.get())
+        ax4.set_xlabel(dropDownX.get())
+        ax4.set_ylabel(dropDownY.get())
+    fig.tight_layout()
+    controlPannelFrame.update()
+    graphCanvas.draw()
+
+
+def customPlotIt():
+    plt.plot(
+        Data[dropDownX.current()],
+        Data[dropDownY.current()],
+        color="#444444",
+        linestyle="--",
+        label="label",
+    )
+    plt.title("cutomGraph")
+    plt.xlabel(dropDownX.get())
+    plt.ylabel(dropDownY.get())
+    plt.show()
+
+
+plotBtn = Button(
+    controlPannelFrame, text="plot", font=("Courier New", "10"), command=plotIt
+)
+plotBtn.pack(side=LEFT, padx=5)
+
+customPlotBtn = Button(
+    controlPannelFrame, text="custom", font=("Courier New", "10"), command=customPlotIt
+)
+customPlotBtn.pack(side=LEFT, padx=5)
+
 
 # --- End Right Part ---#
 
@@ -177,27 +310,27 @@ graphToolBar.update()
 # update the place when root resize
 def place():
 
-    portLabel.place(relheight=0.15, relwidth=1 - 0.8, x=2, y=0)
+    portLabel.place(relheight=0.2, relwidth=1 - 0.8, x=2, y=0)
 
     dropDownSerialOptions.place(
-        anchor=NE, relwidth=0.75, relheight=0.15, x=serialFrame.winfo_width() - 2, y=0
+        anchor=NE, relwidth=0.75, relheight=0.2, x=serialFrame.winfo_width() - 2, y=0
     )
 
     baudrateLabel.place(
-        relheight=0.15, relwidth=1 - 0.7, x=2, y=10 + portLabel.winfo_height()
+        relheight=0.2, relwidth=1 - 0.7, x=2, y=10 + portLabel.winfo_height()
     )
 
     dropDownBaudrateOptions.place(
         anchor=NE,
         relwidth=0.65,
-        relheight=0.15,
+        relheight=0.2,
         x=serialFrame.winfo_width() - 2,
         y=10 + dropDownSerialOptions.winfo_height(),
     )
 
     connectBtn.place(
         relwidth=0.47,
-        relheight=0.15,
+        relheight=0.2,
         x=2,
         y=20 + baudrateLabel.winfo_height() + portLabel.winfo_height(),
     )
@@ -205,7 +338,7 @@ def place():
     disconnectBtn.place(
         anchor=NE,
         relwidth=0.47,
-        relheight=0.15,
+        relheight=0.2,
         x=serialFrame.winfo_width() - 2,
         y=20
         + dropDownSerialOptions.winfo_height()
@@ -214,7 +347,7 @@ def place():
 
     cleanBtn.place(
         relwidth=0.47,
-        relheight=0.15,
+        relheight=0.2,
         x=2,
         y=30
         + baudrateLabel.winfo_height()
@@ -227,7 +360,7 @@ def place():
         x=0,
         y=0,
         relheight=0.95,
-        relwidth=0.95,
+        relwidth=0.90,
     )
 
     dataCanvasScrollbar.place(
@@ -253,10 +386,21 @@ def place():
     )
 
     graphCanvas.get_tk_widget().place(
+        anchor=NW,
+        x=0,
+        y=controlPannelFrame.winfo_height(),
+        height=rightWrapperFrame.winfo_height()
+        - graphToolBar.winfo_height()
+        - controlPannelFrame.winfo_height(),
+        relwidth=1,
+    )
+
+    controlPannelFrame.place(
+        anchor=NW,
         x=0,
         y=0,
-        height=rightWrapperFrame.winfo_height() - graphToolBar.winfo_height(),
         relwidth=1,
+        height=40,
     )
 
 
@@ -269,5 +413,6 @@ root.bind("<Configure>", d)
 while True:
     root.update_idletasks()
     root.update()
-    place()
     printSerialPortData()
+    appendData()
+    place()
