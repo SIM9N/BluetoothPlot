@@ -5,6 +5,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 from turtle import color, width
+from webbrowser import BackgroundBrowser
+from numpy import append
 import serial.tools.list_ports
 import matplotlib
 
@@ -15,12 +17,20 @@ from matplotlib.figure import Figure
 
 import matplotlib.pyplot as plt
 
+from openpyxl import Workbook, load_workbook
+
+import datetime
+
+labelFont = ("Courier New", "11")
+dropDownFont = ("Courier New", "12")
 
 root = Tk()
 root.title("BluetoothPlot")
 root.config(bg="grey")
 root.geometry("1000x600")
 root.minsize(1000, 600)
+style = ttk.Style()
+style.theme_use("default")
 
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
@@ -32,6 +42,10 @@ leftWrapperFrame.grid(column=0, row=0, sticky="nesw")
 rightWrapperFrame = Frame(root, bg="#c9eeeb", bd=2, relief=RIDGE)
 rightWrapperFrame.grid(column=1, row=0, sticky="nesw")
 
+#a function for ttkComboBox
+def defocus(event):
+    event.widget.master.focus_set()
+
 # --- Start Left Part ---#
 leftWrapperFrame.grid_columnconfigure(0, weight=1)
 leftWrapperFrame.grid_rowconfigure(0, weight=1)
@@ -41,25 +55,21 @@ leftWrapperFrame.grid_rowconfigure(1, weight=3)
 serialFrame = Frame(leftWrapperFrame, bg="#a4b2b0")
 serialFrame.grid(column=0, row=0, padx=5, pady=5, sticky="nesw")
 
-
-def defocus(event):
-    event.widget.master.focus_set()
-
-
 # selecting the serial port
 serialPortOptions = ["0"]
 avaPorts = serial.tools.list_ports.comports()
 serialObj = serial.Serial()
 
+#append all the available ports into srialPortOptions
 for onePort in avaPorts:
     serialPortOptions.append(str(onePort).split(" ")[0])
 
-portLabel = Label(serialFrame, text="Port:", font=("Courier New", "9"))
+portLabel = Label(serialFrame, text="Port:", font=labelFont)
 
 dropDownSerialOptions = ttk.Combobox(
     serialFrame,
     value=serialPortOptions,
-    font=("Courier New", "10"),
+    font=dropDownFont,
     state="readonly",
 )
 
@@ -69,12 +79,12 @@ dropDownSerialOptions.bind("<FocusIn>", defocus)
 # selecting the serial baudrate
 baudrateOptions = [1800, 2400, 4800, 9600, 19200, 28800, 38400, 57600, 76800, 115200]
 
-baudrateLabel = Label(serialFrame, text="Baudrate:", font=("Courier New", "9"))
+baudrateLabel = Label(serialFrame, text="Baudrate:", font=labelFont)
 
 dropDownBaudrateOptions = ttk.Combobox(
     serialFrame,
     value=baudrateOptions,
-    font=("Courier New", "10"),
+    font=dropDownFont,
     state="readonly",
 )
 dropDownBaudrateOptions.current(len(baudrateOptions) - 1)
@@ -98,19 +108,17 @@ def initComPort():
             + " )",
         )
 
-
-# some btnssssssss
-connectBtn = Button(serialFrame, text="connect", command=initComPort)
+connectBtn = Button(serialFrame, text="connect", command=initComPort, fg = 'black', borderwidth=0)
 
 disconnectBtn = Button(
-    serialFrame, text="disconnect", command=lambda: serialObj.close()
+    serialFrame, text="disconnect", command=lambda: serialObj.close(), borderwidth=0
 )
 
 # Bluetooth data print
 dataFrame = Frame(leftWrapperFrame, bg="#bbc1c8")
 dataFrame.grid(column=0, row=1, padx=5, pady=5, sticky="nesw")
 
-textData = Text(dataFrame, wrap=NONE, font=("Courier New", "8"), takefocus=0)
+textData = Text(dataFrame, wrap=NONE, font=labelFont, takefocus=0, bg="white", fg="black")
 
 dataCanvasScrollbar = ttk.Scrollbar(dataFrame, orient=VERTICAL, command=textData.yview)
 dataCanvasScrollbar2 = ttk.Scrollbar(
@@ -125,39 +133,50 @@ startCollectingData = False
 Data = []
 recentPacketString = ""
 
-
 def printSerialPortData():
     if serialObj.isOpen() and serialObj.in_waiting:
         recentPacket = serialObj.readline()
         global recentPacketString
-        recentPacketString = recentPacket.decode("utf")
+        try:
+            recentPacketString = recentPacket.decode("utf")
+        except:
+            print ("skip")
         textData.insert("end", recentPacketString)
         textData.see(END)
-        packetArray = recentPacketString.split("-")
-        if packetArray[0] == "bp":
-            print("found bp")
-            global startCollectingData
-            startCollectingData = True
-            global varName
-            varName = packetArray
-            varName.pop(0)
-            global Data
-            Data = [[None] for i in range(len(varName) - 1)]
-            print(Data)
-            dropDownX.config(values=varName)
-            dropDownY.config(values=varName)
-        elif packetArray[0] == "stop":
-            print("stop")
-            startCollectingData = False
 
+#format of the start cmd "bp-dataTitle1-dataTitle2-\n"
+#format of the stop cmd "stop\n"
+def checkStartCMD():
+    global startCollectingData
+    packetArray = recentPacketString.strip("\n").split("-")
+    if packetArray[0] == "bp":
+        print("found bp")
+        global varName
+        varName = packetArray
+        varName.pop(0)
+        global Data
+        Data = [[None] for i in range(len(varName))]
+        print(Data)
+        print(len(Data))
+        print(len(varName))
+        dropDownX.config(values=varName)
+        dropDownY.config(values=varName)
+        startCollectingData = True
+    elif packetArray[0] == "stop":
+        print("stop")
+        startCollectingData = False
 
+#append the bluetooth data into Data[]
 def appendData():
     if startCollectingData:
-        packetArray = recentPacketString.split(",")
-        print(packetArray)
+        packetArray = recentPacketString.strip("\n").split(",")
+        # print(packetArray)
         if len(packetArray) != 1:
-            for i in range(len(varName) - 1):
-                Data[i].append(packetArray[i])
+            try:
+                for i in range(len(varName)):
+                    Data[i].append(packetArray[i])
+            except:
+                print("append failed")
 
 
 # clean the text in dataFrame
@@ -165,7 +184,22 @@ def cleanData():
     textData.delete(1.0, END)
 
 
-cleanBtn = Button(serialFrame, text="clean", command=cleanData)
+cleanBtn = Button(serialFrame, text="clean", command=cleanData, borderwidth=0)
+
+def export2xlsx():
+    currentTime = datetime.datetime.now()
+    wb = Workbook()
+    ws = wb.active
+    ws.append(varName)
+    try:
+        for i in range(len(Data[0])-1):
+            ws.append(Data[j][i+1] for j in range(len(Data)))
+    except IndexError as ex:
+        print("IndexError when exporting data")
+
+    wb.save("./excel/"+currentTime.strftime("%d-%m-%y %H:%M:%S")+".xlsx")
+
+exportBtn = Button(serialFrame, text="export", command=export2xlsx, borderwidth=0)
 
 # --- End Left Part ---#
 
@@ -192,47 +226,47 @@ controlPannelFrame = Frame(rightWrapperFrame, bg="#d7efd2")
 dropDownGraph = ttk.Combobox(
     controlPannelFrame,
     value=["graph1", "graph2", "graph3", "graph4"],
-    font=("Courier New", "10"),
+    font=dropDownFont,
     state="readonly",
     width=7,
 )
 graphLabel = Label(
-    controlPannelFrame, text="plot", bg="#d7efd2", font=("Courier New", "10")
+    controlPannelFrame, text="plot", bg="#d7efd2", font=labelFont, fg="black"
 )
-graphLabel.pack(side=LEFT, padx=5)
+graphLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 dropDownGraph.current(0)
 dropDownGraph.bind("<FocusIn>", defocus)
-dropDownGraph.pack(side=LEFT)
+dropDownGraph.pack(side=LEFT, padx=5, pady=7, fill=Y)
 
 dropDownX = ttk.Combobox(
     controlPannelFrame,
     value=varName,
-    font=("Courier New", "10"),
+    font=dropDownFont,
     state="readonly",
     width=10,
 )
-xLabel = Label(controlPannelFrame, text="X", bg="#d7efd2", font=("Courier New", "10"))
-xLabel.pack(side=LEFT, padx=5)
+xLabel = Label(controlPannelFrame, text="X", bg="#d7efd2", font=labelFont, fg="black")
+xLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 dropDownX.current(0)
 dropDownX.bind("<FocusIn>", defocus)
-dropDownX.pack(side=LEFT)
+dropDownX.pack(side=LEFT, padx=5, pady=7, fill=Y)
 
 dropDownY = ttk.Combobox(
     controlPannelFrame,
     value=varName,
-    font=("Courier New", "10"),
+    font=dropDownFont,
     state="readonly",
     width=10,
 )
 
-yLabel = Label(controlPannelFrame, text="Y", bg="#d7efd2", font=("Courier New", "10"))
-yLabel.pack(side=LEFT, padx=5)
+yLabel = Label(controlPannelFrame, text="Y", bg="#d7efd2", font=labelFont, fg="black")
+yLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 dropDownY.current(0)
 dropDownY.bind("<FocusIn>", defocus)
-dropDownY.pack(side=LEFT)
+dropDownY.pack(side=LEFT, padx=5, pady=7, fill=Y)
 
 
 def plotIt():
@@ -294,20 +328,19 @@ def customPlotIt():
 
 
 plotBtn = Button(
-    controlPannelFrame, text="plot", font=("Courier New", "10"), command=plotIt
+    controlPannelFrame, text="plot",  command=plotIt, borderwidth=0, highlightthickness=0
 )
-plotBtn.pack(side=LEFT, padx=5)
+plotBtn.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 customPlotBtn = Button(
-    controlPannelFrame, text="custom", font=("Courier New", "10"), command=customPlotIt
+    controlPannelFrame, text="custom",  command=customPlotIt, borderwidth=0, highlightthickness=0
 )
-customPlotBtn.pack(side=LEFT, padx=5)
+customPlotBtn.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 
 # --- End Right Part ---#
 
 
-# update the place when root resize
 def place():
 
     portLabel.place(relheight=0.2, relwidth=1 - 0.8, x=2, y=0)
@@ -349,7 +382,18 @@ def place():
         relwidth=0.47,
         relheight=0.2,
         x=2,
-        y=30
+        y=25
+        + baudrateLabel.winfo_height()
+        + portLabel.winfo_height()
+        + connectBtn.winfo_height(),
+    )
+
+    exportBtn.place(
+        anchor=NE,
+        relwidth=0.47,
+        relheight=0.2,
+        x=serialFrame.winfo_width() - 2,
+        y=25
         + baudrateLabel.winfo_height()
         + portLabel.winfo_height()
         + connectBtn.winfo_height(),
@@ -360,12 +404,12 @@ def place():
         x=0,
         y=0,
         relheight=0.95,
-        relwidth=0.90,
+        relwidth=0.92,
     )
 
     dataCanvasScrollbar.place(
         anchor=NE,
-        x=serialFrame.winfo_width() - 2,
+        x=serialFrame.winfo_width(),
         y=0,
         relwidth=0.08,
         relheight=1,
@@ -403,16 +447,10 @@ def place():
         height=40,
     )
 
-
-def d(event):
-    place()
-
-
-root.bind("<Configure>", d)
-
 while True:
     root.update_idletasks()
     root.update()
-    printSerialPortData()
+    printSerialPortData() 
+    checkStartCMD()
     appendData()
     place()
