@@ -201,6 +201,21 @@ def export2xlsx():
 
 exportBtn = Button(serialFrame, text="export", command=export2xlsx, borderwidth=0)
 
+wb_auto = Workbook()
+ws_auto = wb_auto.active
+def autoExport():
+    currentTime = datetime.datetime.now()
+    packetArray = recentPacketString.strip("\n").split("-")
+    if packetArray[0] == "ae":
+        print("found ae")
+        packetArray.pop(0)
+        print(packetArray)
+        ws_auto.append(packetArray)
+    if packetArray[0] == "end":
+        print("found end")
+        ws_auto.append([])
+        wb_auto.save("./excel/"+currentTime.strftime("%d-%m-%y")+"_auto.xlsx")
+
 # --- End Left Part ---#
 
 # --- Start Right Part ---#
@@ -453,4 +468,5 @@ while True:
     printSerialPortData() 
     checkStartCMD()
     appendData()
+    autoExport()
     place()
