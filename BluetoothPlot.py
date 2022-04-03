@@ -1,25 +1,16 @@
-from cgitb import text
-from sqlite3 import connect
-from textwrap import fill
-from tkinter import *
-from tkinter import ttk
-from tkinter import messagebox
-from turtle import color, width
-from webbrowser import BackgroundBrowser
-from numpy import append
+import datetime
+from openpyxl import Workbook, load_workbook
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from tkinter import ttk, messagebox
+from tkinter import*
+import serial
 import serial.tools.list_ports
 import matplotlib
 
 matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
-from matplotlib.figure import Figure
-
-import matplotlib.pyplot as plt
-
-from openpyxl import Workbook, load_workbook
-
-import datetime
 
 labelFont = ("Courier New", "11")
 dropDownFont = ("Courier New", "12")
@@ -42,9 +33,12 @@ leftWrapperFrame.grid(column=0, row=0, sticky="nesw")
 rightWrapperFrame = Frame(root, bg="#c9eeeb", bd=2, relief=RIDGE)
 rightWrapperFrame.grid(column=1, row=0, sticky="nesw")
 
-#a function for ttkComboBox
+# a function for ttkComboBox
+
+
 def defocus(event):
     event.widget.master.focus_set()
+
 
 # --- Start Left Part ---#
 leftWrapperFrame.grid_columnconfigure(0, weight=1)
@@ -60,7 +54,7 @@ serialPortOptions = ["0"]
 avaPorts = serial.tools.list_ports.comports()
 serialObj = serial.Serial()
 
-#append all the available ports into srialPortOptions
+# append all the available ports into srialPortOptions
 for onePort in avaPorts:
     serialPortOptions.append(str(onePort).split(" ")[0])
 
@@ -77,7 +71,8 @@ dropDownSerialOptions.current(0)
 dropDownSerialOptions.bind("<FocusIn>", defocus)
 
 # selecting the serial baudrate
-baudrateOptions = [1800, 2400, 4800, 9600, 19200, 28800, 38400, 57600, 76800, 115200]
+baudrateOptions = [1800, 2400, 4800, 9600,
+                   19200, 28800, 38400, 57600, 76800, 115200]
 
 baudrateLabel = Label(serialFrame, text="Baudrate:", font=labelFont)
 
@@ -91,6 +86,8 @@ dropDownBaudrateOptions.current(len(baudrateOptions) - 1)
 dropDownBaudrateOptions.bind("<FocusIn>", defocus)
 
 # connect the selected comport
+
+
 def initComPort():
     try:
         serialObj.port = dropDownSerialOptions.get()
@@ -108,7 +105,9 @@ def initComPort():
             + " )",
         )
 
-connectBtn = Button(serialFrame, text="connect", command=initComPort, fg = 'black', borderwidth=0)
+
+connectBtn = Button(serialFrame, text="connect",
+                    command=initComPort, fg='black', borderwidth=0)
 
 disconnectBtn = Button(
     serialFrame, text="disconnect", command=lambda: serialObj.close(), borderwidth=0
@@ -118,9 +117,11 @@ disconnectBtn = Button(
 dataFrame = Frame(leftWrapperFrame, bg="#bbc1c8")
 dataFrame.grid(column=0, row=1, padx=5, pady=5, sticky="nesw")
 
-textData = Text(dataFrame, wrap=NONE, font=labelFont, takefocus=0, bg="white", fg="black")
+textData = Text(dataFrame, wrap=NONE, font=labelFont,
+                takefocus=0, bg="white", fg="black")
 
-dataCanvasScrollbar = ttk.Scrollbar(dataFrame, orient=VERTICAL, command=textData.yview)
+dataCanvasScrollbar = ttk.Scrollbar(
+    dataFrame, orient=VERTICAL, command=textData.yview)
 dataCanvasScrollbar2 = ttk.Scrollbar(
     dataFrame, orient=HORIZONTAL, command=textData.xview
 )
@@ -133,6 +134,7 @@ startCollectingData = False
 Data = []
 recentPacketString = ""
 
+
 def printSerialPortData():
     if serialObj.isOpen() and serialObj.in_waiting:
         recentPacket = serialObj.readline()
@@ -140,17 +142,19 @@ def printSerialPortData():
         try:
             recentPacketString = recentPacket.decode("utf")
         except:
-            print ("skip")
+            print("skip")
         textData.insert("end", recentPacketString)
         textData.see(END)
 
-#format of the start cmd "bp-dataTitle1-dataTitle2-\n"
-#format of the stop cmd "stop\n"
+# format of the start cmd "bp-dataTitle1-dataTitle2-\n"
+# format of the stop cmd "stop\n"
+
+
 def checkStartCMD():
     global startCollectingData
     packetArray = recentPacketString.strip("\n").split("-")
-    if packetArray[0] == "bp":
-        print("found bp")
+    if packetArray[0] == "dataName":
+        print("found dataName")
         global varName
         varName = packetArray
         varName.pop(0)
@@ -166,7 +170,9 @@ def checkStartCMD():
         print("stop")
         startCollectingData = False
 
-#append the bluetooth data into Data[]
+# append the bluetooth data into Data[]
+
+
 def appendData():
     if startCollectingData:
         packetArray = recentPacketString.strip("\n").split(",")
@@ -186,6 +192,7 @@ def cleanData():
 
 cleanBtn = Button(serialFrame, text="clean", command=cleanData, borderwidth=0)
 
+
 def export2xlsx():
     currentTime = datetime.datetime.now()
     wb = Workbook()
@@ -199,10 +206,14 @@ def export2xlsx():
 
     wb.save("./excel/"+currentTime.strftime("%d-%m-%y %H:%M:%S")+".xlsx")
 
-exportBtn = Button(serialFrame, text="export", command=export2xlsx, borderwidth=0)
+
+exportBtn = Button(serialFrame, text="export",
+                   command=export2xlsx, borderwidth=0)
 
 wb_auto = Workbook()
 ws_auto = wb_auto.active
+
+
 def autoExport():
     currentTime = datetime.datetime.now()
     packetArray = recentPacketString.strip("\n").split("-")
@@ -217,6 +228,7 @@ def autoExport():
         wb_auto.save("./excel/"+currentTime.strftime("%d-%m-%y")+"_auto.xlsx")
 
 # --- End Left Part ---#
+
 
 # --- Start Right Part ---#
 fig = Figure(figsize=(0.1, 0.1), dpi=100)
@@ -236,17 +248,17 @@ graphCanvas.draw()
 graphToolBar = Toolbar(graphCanvas, rightWrapperFrame, pack_toolbar=False)
 graphToolBar.update()
 
-controlPannelFrame = Frame(rightWrapperFrame, bg="#d7efd2")
+controlPanelFrame = Frame(rightWrapperFrame, bg="#d7efd2")
 
 dropDownGraph = ttk.Combobox(
-    controlPannelFrame,
+    controlPanelFrame,
     value=["graph1", "graph2", "graph3", "graph4"],
     font=dropDownFont,
     state="readonly",
     width=7,
 )
 graphLabel = Label(
-    controlPannelFrame, text="plot", bg="#d7efd2", font=labelFont, fg="black"
+    controlPanelFrame, text="plot", bg="#d7efd2", font=labelFont, fg="black"
 )
 graphLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
@@ -255,13 +267,14 @@ dropDownGraph.bind("<FocusIn>", defocus)
 dropDownGraph.pack(side=LEFT, padx=5, pady=7, fill=Y)
 
 dropDownX = ttk.Combobox(
-    controlPannelFrame,
+    controlPanelFrame,
     value=varName,
     font=dropDownFont,
     state="readonly",
     width=10,
 )
-xLabel = Label(controlPannelFrame, text="X", bg="#d7efd2", font=labelFont, fg="black")
+xLabel = Label(controlPanelFrame, text="X",
+               bg="#d7efd2", font=labelFont, fg="black")
 xLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 dropDownX.current(0)
@@ -269,14 +282,15 @@ dropDownX.bind("<FocusIn>", defocus)
 dropDownX.pack(side=LEFT, padx=5, pady=7, fill=Y)
 
 dropDownY = ttk.Combobox(
-    controlPannelFrame,
+    controlPanelFrame,
     value=varName,
     font=dropDownFont,
     state="readonly",
     width=10,
 )
 
-yLabel = Label(controlPannelFrame, text="Y", bg="#d7efd2", font=labelFont, fg="black")
+yLabel = Label(controlPanelFrame, text="Y",
+               bg="#d7efd2", font=labelFont, fg="black")
 yLabel.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 dropDownY.current(0)
@@ -324,7 +338,7 @@ def plotIt():
         ax4.set_xlabel(dropDownX.get())
         ax4.set_ylabel(dropDownY.get())
     fig.tight_layout()
-    controlPannelFrame.update()
+    controlPanelFrame.update()
     graphCanvas.draw()
 
 
@@ -343,12 +357,12 @@ def customPlotIt():
 
 
 plotBtn = Button(
-    controlPannelFrame, text="plot",  command=plotIt, borderwidth=0, highlightthickness=0
+    controlPanelFrame, text="plot",  command=plotIt, borderwidth=0, highlightthickness=0
 )
 plotBtn.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
 customPlotBtn = Button(
-    controlPannelFrame, text="custom",  command=customPlotIt, borderwidth=0, highlightthickness=0
+    controlPanelFrame, text="custom",  command=customPlotIt, borderwidth=0, highlightthickness=0
 )
 customPlotBtn.pack(side=LEFT, padx=5, pady=5, fill=Y)
 
@@ -447,14 +461,14 @@ def place():
     graphCanvas.get_tk_widget().place(
         anchor=NW,
         x=0,
-        y=controlPannelFrame.winfo_height(),
+        y=controlPanelFrame.winfo_height(),
         height=rightWrapperFrame.winfo_height()
         - graphToolBar.winfo_height()
-        - controlPannelFrame.winfo_height(),
+        - controlPanelFrame.winfo_height(),
         relwidth=1,
     )
 
-    controlPannelFrame.place(
+    controlPanelFrame.place(
         anchor=NW,
         x=0,
         y=0,
@@ -462,10 +476,11 @@ def place():
         height=40,
     )
 
+
 while True:
     root.update_idletasks()
     root.update()
-    printSerialPortData() 
+    printSerialPortData()
     checkStartCMD()
     appendData()
     autoExport()
