@@ -1,3 +1,5 @@
+import threading
+from time import sleep
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from tkinter import*
@@ -5,17 +7,15 @@ from tkinter import ttk
 import matplotlib
 matplotlib.use("TkAgg")
 
-LabelFrameFont = ("Courier New", "14", "bold")
-ButtonFont = ("Courier New", "14")
-
 
 class GraphFrame(LabelFrame):
-    def __init__(self, master):
+    def __init__(self, master, controller):
         super().__init__(master)
         self.backgroundColor = master.backgroundColor
+        self.controller = controller
         # self.backgroundColor = "red"
         self.config(labelwidget=ttk.Label(
-            text="GraphFrame", font=LabelFrameFont, foreground="grey", background=self.backgroundColor), background=self.backgroundColor)
+            text="GraphFrame", font=controller.labelFrameFont, foreground="grey", background=self.backgroundColor), background=self.backgroundColor)
 
         self.fig = Figure(figsize=(0.1, 0.1), dpi=100)
         self.rt = self.fig.add_subplot(111)
@@ -34,6 +34,7 @@ class GraphFrame(LabelFrame):
         self.realTimeYIndex = 0
         self.realTimeXTitle = ""
         self.realTimeYTitle = ""
+        self.realTimeThread = None
 
         class Toolbar(NavigationToolbar2Tk):
             def set_message(self, s):
@@ -48,7 +49,7 @@ class GraphFrame(LabelFrame):
         self.graphToolBar.place(relwidth=0.95, relheight=0.1, x=5, y=535)
 
         self.btnStyle = ttk.Style()
-        self.btnStyle.configure('my.TButton', font=ButtonFont)
+        self.btnStyle.configure('my.TButton', font=controller.buttonFont)
         self.toggleViewPlotBtn = ttk.Button(
             self, text="toggleView",  command=self.toggleView, style="my.TButton")
         self.toggleViewPlotBtn.place(x=750, y=550)
@@ -91,22 +92,32 @@ class GraphFrame(LabelFrame):
         self.fig.tight_layout()
         self.graphCanvas.draw()
 
+    def startRealTimePlotThread(self):
+        if not isinstance(self.realTimeThread, threading.Thread):
+            self.realTimeThread = threading.Thread(target=self.realTimePlot)
+            self.realTimeThread.start()
+            print('realTimePlotThread started')
+
     def realTimePlot(self):
-        if self.realTime and self.master.master.started:
-            self.rt.cla()
-            self.rt.scatter(
-                self.master.master.data[self.realTimeXIndex],
-                self.master.master.data[self.realTimeYIndex],
-                color="#444444",
-                label="label",
-            )
+        while self.realTime:
+            sleep(0.1)
+            if self.controller.started and not self.controller.appendingData:
+                self.rt.cla()
+                self.rt.scatter(
+                    self.controller.data[self.realTimeXIndex],
+                    self.controller.data[self.realTimeYIndex],
+                    color="#444444",
+                    label="label",
+                )
 
-            self.rt.set_title(self.realTimeYTitle +
-                              " - " + self.realTimeXTitle)
-            self.rt.set_xlabel(self.realTimeXTitle)
-            self.rt.set_ylabel(self.realTimeYTitle)
+                self.rt.set_title(self.realTimeYTitle +
+                                  " - " + self.realTimeXTitle)
+                self.rt.set_xlabel(self.realTimeXTitle)
+                self.rt.set_ylabel(self.realTimeYTitle)
 
-            self.graphCanvas.draw()
+                self.graphCanvas.draw()
+
+        print('realTimePlotThread terminated')
 
     def toggleView(self):
         self.realTimeView = not self.realTimeView

@@ -1,27 +1,20 @@
 from tkinter import*
 from tkinter import ttk
-from tkinter.tix import PopupMenu
-
-LabelFrameFont = ("Courier New", "14", "bold")
-ButtonFont = ("Courier New", "14")
-textFont = ("Courier New", "11")
-
-
-def defocus(event):
-    event.widget.master.focus_set()
 
 
 class SerialDataFrame(LabelFrame):
-    def __init__(self, master):
+    def __init__(self, master, controller):
         super().__init__(master)
         self.backgroundColor = master.backgroundColor
+        self.controller = controller
         self.config(labelwidget=ttk.Label(
-            text="SerialDataFrame", font=LabelFrameFont, foreground="grey",
+            text="SerialDataFrame", font=controller.labelFrameFont, foreground="grey",
             background=self.backgroundColor), background=self.backgroundColor)
 
-        self.textData = Text(self, wrap=NONE, font=textFont,
+        self.textData = Text(self, wrap=NONE, font=controller.textFont,
                              takefocus=0, bg="white", fg="black", bd=0)
-        self.textData.bind("<FocusIn>", defocus)
+        self.textData.bind(
+            "<FocusIn>", lambda event: event.widget.master.focus_set())
         self.textVerticalScrollbar = ttk.Scrollbar(
             self, orient=VERTICAL, command=self.textData.yview)
         self.textHorizontalScrollbar = ttk.Scrollbar(

@@ -1,22 +1,19 @@
+import threading
 from tkinter import*
 from tkinter import ttk, messagebox, filedialog
 from turtle import left
 from openpyxl import Workbook, load_workbook
 import datetime
 
-LabelFrameFont = ("Courier New", "14", "bold")
-ButtonFont = ("Courier New", "11")
-labelFont = ("Courier New", "14")
-
 
 class LoggingPanel(LabelFrame):
-    def __init__(self, master):
+    def __init__(self, master, controller):
         super().__init__(master)
         self.backgroundColor = master.backgroundColor
         self.config(labelwidget=ttk.Label(
-            text="LoggingPanel", font=LabelFrameFont, foreground="grey",
+            text="LoggingPanel", font=controller.labelFrameFont, foreground="grey",
             background=self.backgroundColor), background=self.backgroundColor)
-
+        self.controller = controller
         self.rowconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
@@ -27,11 +24,12 @@ class LoggingPanel(LabelFrame):
         self.columnconfigure(5, weight=1)
 
         btnStyle = ttk.Style()
-        btnStyle.configure('my.TButton', font=ButtonFont)
+        btnStyle.configure('my.TButton', font=controller.buttonFont)
 
         self.filename = ""
+        self.printNote = True
 
-        self.noteLabel = Label(self, text="Note:", font=labelFont,
+        self.noteLabel = Label(self, text="Note:", font=controller.labelFont,
                                background=self.backgroundColor, foreground="black", border=2, relief="groove", padx=10, pady=5)
         self.noteLabel.grid(column=0, row=0, columnspan=2,
                             padx=(4, 0), pady=0, sticky="WE")
@@ -50,41 +48,51 @@ class LoggingPanel(LabelFrame):
         self.exportBtn.place(relwidth=0.3, relheight=0.3, x=120, y=55)
 
     def export2xlsx(self):
-        wb = Workbook()
-        if self.filename != "":
+        try:
             wb = load_workbook(self.filename)
-        else:
+        except:
+            wb = Workbook()
             wb.create_sheet("all")
             wb.create_sheet("once")
+            self.filename = "./excel/"+datetime.datetime.now().strftime("%d-%m-%y %H:%M")+".xlsx"
 
         ws = wb["all"]
         ws.append(["note", self.note.get()])
-        ws.append(self.master.master.dataName)
+        ws.append(self.controller.dataName)
 
-        for i in range(len(self.master.master.data[0])-1):
-            ws.append(self.master.master.data[j][i+1]
-                      for j in range(len(self.master.master.data)))
+        for i in range(len(self.controller.data[0])-1):
+            ws.append(self.controller.data[j][i+1]
+                      for j in range(len(self.controller.data)))
 
         ws.append([])
-        if self.filename != "":
-            wb.save(self.filename)
-        else:
-            wb.save(
-                "./excel/"+datetime.datetime.now().strftime("%d-%m-%y %H:%M")+".xlsx")
+        wb.save(self.filename)
+        print("saved " + self.filename + ".xlsx")
 
     def openExcelFile(self):
         self.filename = filedialog.askopenfilename(
             initialdir="./excel", title="Select a excel file", filetypes=(("all", "."), ("xlsx", "*.xlsx")))
 
-    # def autoExport(self):
-    #     currentTime = datetime.datetime.now()
-    #     packetArray = recentPacketString.strip("\n").split("-")
-    #     if packetArray[0] == "ae":
-    #         print("found ae")
-    #         packetArray.pop(0)
-    #         print(packetArray)
-    #         ws_auto.append(packetArray)
-    #     if packetArray[0] == "end":
-    #         print("found end")
-    #         ws_auto.append([])
-    #         wb_auto.save("./excel/"+currentTime.strftime("%d-%m-%y")+"_auto.xlsx")
+    def autoExport(self, cmd):
+        packetArray = self.controller.packetString.strip("\n").split("-")
+        try:
+            wb = load_workbook(self.filename)
+        except:
+            wb = Workbook()
+            wb.create_sheet("all")
+            wb.create_sheet("once")
+            self.filename = "./excel/"+datetime.datetime.now().strftime("%d-%m-%y %H:%M")+".xlsx"
+
+        ws = wb["once"]
+        if self.printNote:
+            ws.append(["note", self.note.get()])
+        if cmd == "save":
+            packetArray.pop(0)
+            print(packetArray)
+            ws.append(packetArray)
+            wb.save(self.filename)
+            self.printNote = False
+        if cmd == "end":
+            ws.append([])
+            wb.save(self.filename)
+            self.printNote = True
+            print("saved " + self.filename + ".xlsx")
