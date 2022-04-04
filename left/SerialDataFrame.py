@@ -27,7 +27,7 @@ class SerialDataFrame(LabelFrame):
             anchor=NW,
             x=2,
             y=0,
-            relheight=0.95,
+            relheight=0.98,
             relwidth=0.93
         )
 
@@ -36,12 +36,12 @@ class SerialDataFrame(LabelFrame):
             x=264,
             y=0,
             relwidth=0.05,
-            relheight=0.95
+            relheight=0.98
         )
 
         self.textHorizontalScrollbar.place(
             x=2,
-            y=345,
+            y=390,
             relheight=0.05,
             relwidth=0.92
         )

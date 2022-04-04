@@ -29,7 +29,7 @@ def readSerialDataThread(serialPort, thread_queue=None):
 
 class SerialPlotTool(Tk):
     labelFrameFont = ("Courier New", "14", "bold")
-    labelFont = ("Courier New", "14")
+    labelFont = ("Courier New", "13")
     dropDownFont = ("Courier New", "13")
     buttonFont = ("Courier New", "14")
     textFont = ("Courier New", "11")
@@ -101,12 +101,13 @@ class SerialPlotTool(Tk):
         if not self.dataNameInited:
             if self.packetString.find("dataName") == 0:
                 print("found dataName")
-                self.serialPanel.startBtn.config(state="enable")
+                # self.serialPanel.startBtn.config(state="enable")
                 self.dataName = self.packetString.strip("\n").split("-")
                 self.dataName.pop(0)
                 self.data = [[None] for i in range(len(self.dataName))]
                 self.graphControlPanel.updateDropDownXY()
                 self.dataNameInited = True
+                self.started = True
         if self.packetString.find("save") == 0:
             print("found save")
             self.loggingPanel.autoExport("save")

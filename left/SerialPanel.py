@@ -4,27 +4,24 @@ from tkinter import ttk, messagebox
 
 
 class SerialPanel(LabelFrame):
+    column1_x = 5
+    row1_y = 7
+    row2_y = 52
+
+    relHeight = 0.35
+
     def __init__(self, master, controller):
         super().__init__(master)
         self.backgroundColor = master.backgroundColor
         self.controller = controller
         self.config(labelwidget=ttk.Label(
             text="SerialPanel", font=controller.labelFrameFont, foreground="grey", background=self.backgroundColor), background=self.backgroundColor)
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.columnconfigure(3, weight=1)
-        self.columnconfigure(4, weight=1)
-        self.columnconfigure(5, weight=1)
 
         # Choose a serial Port
         self.portLabel = Label(self, text="Port:", font=controller.labelFont,
                                background=self.backgroundColor, foreground="black", border=2, relief="groove", padx=10, pady=5)
-        self.portLabel.grid(column=0, row=0, columnspan=2,
-                            padx=(4, 0), sticky="WE")
+        self.portLabel.place(relwidth=0.2, relheight=self.relHeight,
+                             x=self.column1_x, y=self.row1_y)
 
         self.serialPortOptions = self.initSerialPortOptions()
         self.dropDownSerialOptions = ttk.Combobox(
@@ -36,14 +33,14 @@ class SerialPanel(LabelFrame):
         self.dropDownSerialOptions.current(0)
         self.dropDownSerialOptions.bind(
             "<FocusIn>", lambda event: event.widget.master.focus_set())
-        self.dropDownSerialOptions.grid(
-            column=2, row=0, columnspan=4, padx=(4, 4), sticky="WE")
+        self.dropDownSerialOptions.place(
+            relwidth=0.71, relheight=self.relHeight, x=70, y=self.row1_y)
 
         # Choose a baudrate
         self.baudrateLabel = Label(self, text="Baudrate:", font=controller.labelFont,
                                    background=self.backgroundColor, foreground="black", border=2, relief="groove", padx=10, pady=5)
-        self.baudrateLabel.grid(column=0, row=1, columnspan=2,
-                                padx=(4, 0), sticky="WE")
+        self.baudrateLabel.place(
+            relwidth=0.3, relheight=self.relHeight, x=self.column1_x, y=self.row2_y)
 
         self.baudrateOptions = [1800, 2400, 4800, 9600,
                                 19200, 28800, 38400, 57600, 76800, 115200]
@@ -56,20 +53,20 @@ class SerialPanel(LabelFrame):
         self.dropDownBaudrateOptions.current(len(self.baudrateOptions) - 1)
         self.dropDownBaudrateOptions.bind(
             "<FocusIn>", lambda event: event.widget.master.focus_set())
-        self.dropDownBaudrateOptions.grid(
-            column=2, row=1, columnspan=4, padx=(4, 4), sticky="WE")
+        self.dropDownBaudrateOptions.place(
+            relwidth=0.30, relheight=self.relHeight, x=95, y=self.row2_y)
 
         btnStyle = ttk.Style()
         btnStyle.configure('my.TButton', font=controller.buttonFont, )
         self.connectBtn = ttk.Button(
             self, text="connect", command=self.initComPort, style="my.TButton")
-        self.connectBtn.grid(column=0, row=2, columnspan=3,
-                             padx=(4, 4), sticky="WE")
+        self.connectBtn.place(
+            relwidth=0.30, relheight=self.relHeight, x=185, y=self.row2_y)
 
-        self.startBtn = ttk.Button(
-            self, text="start", command=self.startAppend, style="my.TButton", state="disable")
-        self.startBtn.grid(column=3, row=2, columnspan=3,
-                           padx=(4, 4), sticky="WE")
+        # self.startBtn = ttk.Button(
+        #     self, text="start", command=self.startAppend, style="my.TButton", state="disable")
+        # self.startBtn.grid(column=3, row=2, columnspan=3,
+        #                    padx=(4, 4), sticky="WE")
 
     def initSerialPortOptions(self):
         portOptions = [""]
@@ -91,6 +88,7 @@ class SerialPanel(LabelFrame):
             else:
                 self.controller.serialPort.close()
                 self.connectBtn.config(text="connect")
+                self.controller.started = False
         except IOError as e:
             messagebox.showerror(
                 "Error",

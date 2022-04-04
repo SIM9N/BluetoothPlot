@@ -94,11 +94,12 @@ class GraphFrame(LabelFrame):
 
     def startRealTimePlotThread(self):
         if not isinstance(self.realTimeThread, threading.Thread):
-            self.realTimeThread = threading.Thread(target=self.realTimePlot)
+            self.realTimeThread = threading.Thread(
+                target=self.realTimePlotThread)
             self.realTimeThread.start()
             print('realTimePlotThread started')
 
-    def realTimePlot(self):
+    def realTimePlotThread(self):
         while self.realTime:
             sleep(0.1)
             if self.controller.started and not self.controller.appendingData:

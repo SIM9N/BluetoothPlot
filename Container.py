@@ -7,9 +7,9 @@ class LeftContainer(Frame):
         self.backgroundColor = "#E0FFFF"
         self.config(bg=self.backgroundColor, bd=3, relief="groove")
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-        self.rowconfigure(2, weight=6)
+        self.rowconfigure(0, weight=2)
+        self.rowconfigure(1, weight=2)
+        self.rowconfigure(2, weight=7)
 
 
 class RightContainer(Frame):
