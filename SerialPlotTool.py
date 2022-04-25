@@ -1,7 +1,5 @@
-from math import fabs
 from tkinter import *
 
-from numpy import empty
 from Container import *
 from left.SerialPanel import SerialPanel
 from left.SerialDataFrame import SerialDataFrame
@@ -17,14 +15,26 @@ import queue as queue
 def readSerialDataThread(serialPort, thread_queue=None):
     result = ""
     while serialPort.isOpen():
-        if serialPort.in_waiting:
-            try:
+        try:
+            if serialPort.in_waiting:
                 recentPacket = serialPort.readline()
-            except:
-                break
-            result = recentPacket.decode("utf")
-            thread_queue.put(result)
-    print("reading thread terminated")
+                result = recentPacket.decode("utf")
+                thread_queue.put(result)
+                # print(thread_queue.qsize())
+                if thread_queue.qsize() > 6:
+                    while thread_queue.qsize() > 3:
+                        string = thread_queue.get(False)
+                        if (
+                            string.find("dataName") != -1
+                            or string.find("save") != -1
+                            or string.find("end") != -1
+                        ):
+                            thread_queue.put(string)
+                            print("put again")
+
+        except Exception as e:
+            continue
+    print("readingThread terminated")
 
 
 class SerialPlotTool(Tk):
@@ -37,10 +47,9 @@ class SerialPlotTool(Tk):
     serialPort = serial.Serial()
     packetString = ""
     dataNameInited = False
-    started = False
     dataName = [""]
     data = []
-    appendingData = False
+    dataLock = threading.Lock()
 
     def __init__(self, title, geometry):
         super().__init__()
@@ -58,16 +67,13 @@ class SerialPlotTool(Tk):
         self.right.place(relwidth=0.75, relheight=1, x=300, y=0)
 
         self.serialPanel = SerialPanel(self.left, self)
-        self.serialPanel.grid(column=0, row=0, padx=4,
-                              pady=(3, 0), sticky="NESW")
+        self.serialPanel.grid(column=0, row=0, padx=4, pady=(3, 0), sticky="NESW")
 
         self.loggingPanel = LoggingPanel(self.left, self)
-        self.loggingPanel.grid(column=0, row=1, padx=4,
-                               pady=(3, 0), sticky="NESW")
+        self.loggingPanel.grid(column=0, row=1, padx=4, pady=(3, 0), sticky="NESW")
 
         self.serialDataFrame = SerialDataFrame(self.left, self)
-        self.serialDataFrame.grid(column=0, row=2, padx=4,
-                                  pady=(3, 3), sticky="NESW")
+        self.serialDataFrame.grid(column=0, row=2, padx=4, pady=(3, 3), sticky="NESW")
 
         self.graphControlPanel = GraphControlPanel(self.right, self)
         self.graphControlPanel.place(relwidth=0.99, relheight=0.1, x=4, y=0)
@@ -81,59 +87,64 @@ class SerialPlotTool(Tk):
     def startReadingThread(self):
         self.threadQueue = queue.Queue()
         self.readingThread = threading.Thread(
-            target=readSerialDataThread, args=(self.serialPort, self.threadQueue))
+            target=readSerialDataThread, args=(self.serialPort, self.threadQueue)
+        )
         self.readingThread.start()
-        print("started reading serial thread")
-        self.after(10, self.listenForData)
+        print("readingThread started")
+        self.after(1, self.listenForData)
 
     def listenForData(self):
+        if not self.serialPort.isOpen():
+            return
         try:
-            self.packetString = self.threadQueue.get(0)
+            self.packetString = self.threadQueue.get(False)
             self.serialDataFrame.insert2Text(self.packetString)
+            # print(int(self.serialDataFrame.textData.index("end").split(".")[0]) - 1)
+            if int(self.serialDataFrame.textData.index("end").split(".")[0]) - 1 > 500:
+                self.serialDataFrame.textData.delete(1.0, 200.0)
             self.checkCMD()
             self.appendData()
             self.after(1, self.listenForData)
+            # print("packetString" + self.packetString)
         except queue.Empty:
+            # print("exception on listenForData")
             if self.readingThread.is_alive:
-                self.after(100, self.listenForData)
+                self.after(1, self.listenForData)
 
     def checkCMD(self):
-        if not self.dataNameInited:
-            if self.packetString.find("dataName") == 0:
-                print("found dataName")
-                # self.serialPanel.startBtn.config(state="enable")
-                self.dataName = self.packetString.strip("\n").split("-")
-                self.dataName.pop(0)
-                self.data = [[None] for i in range(len(self.dataName))]
-                self.graphControlPanel.updateDropDownXY()
-                self.dataNameInited = True
-                self.started = True
-        if self.packetString.find("save") == 0:
-            print("found save")
-            self.loggingPanel.autoExport("save")
-        elif self.packetString.find("end") == 0:
-            print("found end")
-            self.loggingPanel.autoExport("end")
+        if self.packetString.find("dataName") == 0:
+            print("dataName initialized, data reset")
+            # self.serialPanel.startBtn.config(state="enable")
+            self.dataName = self.packetString.strip("\n").split("-")
+            self.dataName.pop(0)
+            self.data = [[None] for i in range(len(self.dataName))]
+            self.graphControlPanel.updateDropDownXY()
+            self.dataNameInited = True
+        if self.dataNameInited:
+            if self.packetString.find("save") == 0:
+                print("start exporting")
+                self.loggingPanel.exportStartIndex = len(self.data[0]) - 1
+            elif self.packetString.find("end") == 0:
+                print("end exporting")
+                self.loggingPanel.exportEndIndex = len(self.data[0]) - 1
+                self.loggingPanel.autoExport()
 
     def getPacketArray(self):
         return self.packetString.strip("\n").split(",")
 
     def appendData(self):
-        if self.started and self.dataNameInited:
+        if self.dataNameInited:
             packetArray = self.getPacketArray()
-            if(len(packetArray) == len(self.data)):
+            if len(packetArray) == len(self.data):
                 floatArray = []
+                for string in packetArray:
+                    floatArray.append(float(string))
                 try:
-                    for string in packetArray:
-                        floatArray.append(float(string))
-
-                    self.appendingData = True
-                    for i in range(len(self.data)):
-                        self.data[i].append(floatArray[i])
-                    self.appendingData = False
-                except:
-                    print("failed append data")
-                    return
+                    if self.dataLock.acquire(False):
+                        for i in range(len(self.data)):
+                            self.data[i].append(floatArray[i])
+                finally:
+                    self.dataLock.release()
 
 
 app = SerialPlotTool("SerialPlotTool", "1200x700")
